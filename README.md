@@ -12,6 +12,15 @@ The control version: a deliberately neutral Markdown-first editor with a normal
 menu bar, document area, Glamour preview, status feedback, and keyboard help.
 It exists so later editors have a clear baseline to challenge.
 
+### 02 — Guided Brief
+
+An editor that begins with purpose rather than an empty document. A Charm Huh
+form asks what is being written, for whom, in what tone, and which sections it
+needs; it then creates an editable Markdown draft with the same save, open,
+formatting, and Glamour-preview capabilities as Plain Default. It demonstrates
+that terminal interaction can guide structure and intent, not merely expose a
+blank canvas plus tools.
+
 ## Project layout
 
 - `cmd/<editor-name>/` contains one runnable editor variant.
@@ -26,6 +35,12 @@ free to change menus, layout, interaction model, and visual style.
 
 ```sh
 go run ./cmd/plain-default
+```
+
+Run Guided Brief with:
+
+```sh
+go run ./cmd/guided-brief
 ```
 
 Press `F10` to open the menu (or use `Alt+F`, `Alt+E`, `Alt+O`, `Alt+I`,
