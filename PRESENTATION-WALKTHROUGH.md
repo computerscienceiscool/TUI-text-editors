@@ -57,6 +57,7 @@ Then name the progression:
 2. Purpose — Guided Brief.
 3. Expression and action vocabulary — Color Field.
 4. Scanning and operational context — Ops Deck.
+5. Clarity and redundant cues — Signal / Accessible.
 
 ## 01 — Plain Default
 

@@ -63,6 +63,20 @@ Run:
 make ops-deck
 ```
 
+### 05 — Signal / Accessible
+
+A high-clarity editor that uses explicit words, symbols, borders, numbered
+lines, a literal caret, and redundant status labels rather than relying on
+color alone. It demonstrates that accessible TUI design can make state,
+focus, and keyboard actions clear for everyone—not just users who perceive a
+specific color, animation, or visual subtlety.
+
+Run:
+
+```sh
+make signal-accessible
+```
+
 ## Project layout
 
 - `cmd/<editor-name>/` contains one runnable editor variant.

@@ -1,4 +1,4 @@
-.PHONY: run guided-brief color-field ops-deck test smoke vet build check
+.PHONY: run guided-brief color-field ops-deck signal-accessible test smoke vet build check
 
 run:
 	go run ./cmd/plain-default
@@ -12,6 +12,9 @@ color-field:
 ops-deck:
 	go run ./cmd/ops-deck
 
+signal-accessible:
+	go run ./cmd/signal-accessible
+
 test:
 	go test ./...
 
@@ -20,6 +23,7 @@ smoke:
 	./scripts/smoke-guided-brief.sh
 	./scripts/smoke-color-field.sh
 	./scripts/smoke-ops-deck.sh
+	./scripts/smoke-signal-accessible.sh
 
 vet:
 	go vet ./...
