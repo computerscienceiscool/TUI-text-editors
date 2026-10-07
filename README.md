@@ -15,6 +15,12 @@ The control version: a deliberately neutral Markdown-first editor with a normal
 menu bar, document area, Glamour preview, status feedback, and keyboard help.
 It exists so later editors have a clear baseline to challenge.
 
+Run:
+
+```sh
+make run
+```
+
 ### 02 — Guided Brief
 
 An editor that begins with purpose rather than an empty document. A Charm Huh
@@ -24,6 +30,12 @@ formatting, and Glamour-preview capabilities as Plain Default. It demonstrates
 that terminal interaction can guide structure and intent, not merely expose a
 blank canvas plus tools.
 
+Run:
+
+```sh
+make guided-brief
+```
+
 ### 03 — Command Palette / Color Field
 
 A deliberately vivid editor that replaces menus with one command palette. Its
@@ -32,12 +44,24 @@ searchable command list. It demonstrates color as an interaction language:
 color can establish categories, orientation, and an action vocabulary rather
 than simply decorate a terminal.
 
+Run:
+
+```sh
+make color-field
+```
+
 ### 04 — Ops Deck
 
 A dense operational layout with a persistent outline, live draft, reading
 view, metrics, and a compact key map. It demonstrates that a TUI can favor
 rapid scanning and action over whitespace—useful for operational or
 high-context work where several views must remain visible at once.
+
+Run:
+
+```sh
+make ops-deck
+```
 
 ## Project layout
 
@@ -49,34 +73,8 @@ Future variants receive their own `cmd/` directory and a new entry in the
 catalog above once complete. They keep the same document behavior while being
 free to change menus, layout, interaction model, and visual style.
 
-## Run
-
-```sh
-go run ./cmd/plain-default
-```
-
-Run Guided Brief with:
-
-```sh
-go run ./cmd/guided-brief
-```
-
-Run Command Palette / Color Field with:
-
-```sh
-go run ./cmd/color-field
-```
-
-Run Ops Deck with:
-
-```sh
-go run ./cmd/ops-deck
-```
-
-Press `F10` to open the menu (or use `Alt+F`, `Alt+E`, `Alt+O`, `Alt+I`,
-`Alt+V`, or `Alt+H` for a specific menu). Arrow keys navigate menus; `Enter`
-selects an action; `Esc` closes a menu or prompt. `Ctrl+P` toggles preview and
-`Ctrl+C` quits. Open and save `.md`,
+Plain Default uses `F10` or `Alt` menu mnemonics; the other editors document
+their shortcuts in their own footer. All variants open and save `.md`,
 `.markdown`, and `.txt` files.
 
 ## Verification
