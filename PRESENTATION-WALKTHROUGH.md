@@ -183,6 +183,64 @@ make ops-deck
 **Operational density.** Whitespace is not always the goal. For high-context
 work, persistent context can be kinder than repeated navigation.
 
+## 05 — Signal / Accessible
+
+Launch:
+
+```sh
+make signal-accessible
+```
+
+### Demonstrate
+
+1. Point out the literal labels: `[EDITING]`, `[READING]`, and `[STATUS]`.
+2. Show the permanent F-key action map at the bottom.
+3. Use `F5` for a heading, `F6` for a bullet, and `F7` to toggle preview.
+4. Mention the numbered gutter and literal caret as cues that do not depend on
+   subtle color changes or a blinking terminal cursor.
+
+### Say
+
+> “Accessibility is not a monochrome fallback. It is a design discipline of
+> making state, focus, and actions legible through more than one channel.”
+
+### Design lesson
+
+**Redundant cues and clarity.** Words, symbols, borders, position, and
+keyboard labels can reinforce one another so meaning does not require a
+specific visual ability or terminal theme.
+
+## 06 — Playground
+
+Launch:
+
+```sh
+make playground
+```
+
+### Demonstrate
+
+1. Point out the current mood and writing prompt in the left panel.
+2. Press `Tab` to cycle the mood label; it is deliberately a visual/tonal
+   treatment, not a different editor mode.
+3. Press `F1` to cycle a writing prompt.
+4. Use `F5`, `F6`, `F7`, and `F8` to insert a title, step, quote, and sparkle
+   at the caret.
+5. Show that the draft remains a normal editable Markdown document with a
+   separate reading view and ordinary save/open actions.
+
+### Say
+
+> “Not every demo needs to solve a production workflow. This one is a sketch
+> meant to spark an idea: terminals can have tone, warmth, and a little joy,
+> while the underlying editor stays fully real.”
+
+### Design lesson
+
+**Play and emotional tone.** Language, visual mood, micro-feedback, and
+optional ritual can spark new design ideas without pretending to be a complete
+product workflow.
+
 ## Closing question for the team
 
 Ask:

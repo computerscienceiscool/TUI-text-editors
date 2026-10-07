@@ -77,6 +77,19 @@ Run:
 make signal-accessible
 ```
 
+### 06 — Playground
+
+An expressive editor with writing prompts, visual mood labels, playful language, and
+small “sticker” actions for titles, steps, quotes, and sparkles. It shows that
+terminal interfaces can invite experimentation and spark design ideas without
+sacrificing a real Markdown editor and preview.
+
+Run:
+
+```sh
+make playground
+```
+
 ## Project layout
 
 - `cmd/<editor-name>/` contains one runnable editor variant.
