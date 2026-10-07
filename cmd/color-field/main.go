@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -18,6 +19,7 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/glamour/styles"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
 type command struct {
@@ -27,6 +29,30 @@ type command struct {
 func (c command) Title() string       { return c.name }
 func (c command) Description() string { return c.category + " · " + c.description }
 func (c command) FilterValue() string { return c.name + " " + c.category }
+
+// paletteDelegate applies colors after list filtering has processed plain
+// command text. Rendering ANSI sequences inside Title caused the stock
+// delegate to display escape fragments while navigating filtered results.
+type paletteDelegate struct{}
+
+func (paletteDelegate) Height() int                         { return 2 }
+func (paletteDelegate) Spacing() int                        { return 1 }
+func (paletteDelegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
+func (paletteDelegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+	entry, ok := item.(command)
+	if !ok {
+		return
+	}
+	prefix := "  "
+	nameStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
+	if index == m.Index() {
+		prefix = "› "
+		nameStyle = nameStyle.Bold(true).Background(lipgloss.Color("236"))
+	}
+	title := prefix + chip(entry.category, categoryColor(entry.category)) + " " + entry.name
+	detail := "   " + entry.description
+	fmt.Fprint(w, nameStyle.Render(title)+"\n"+lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(detail))
+}
 
 var commands = []list.Item{
 	command{"New document", "Clear the canvas", "FILE"},
@@ -50,6 +76,7 @@ type model struct {
 	width, height                   int
 	path, message, prompt           string
 	paletteOpen, preview, focusMode bool
+	category                        string
 }
 
 func newModel() model {
@@ -57,14 +84,14 @@ func newModel() model {
 	ed.Placeholder = "Start with an idea…"
 	ed.ShowLineNumbers = false
 	ed.Focus()
-	p := list.New(commands, list.NewDefaultDelegate(), 44, 16)
+	p := list.New(commands, paletteDelegate{}, 44, 16)
 	p.Title = "COMMAND PALETTE"
 	p.Styles.Title = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("230")).Background(lipgloss.Color("57")).Padding(0, 1)
 	p.Styles.StatusBar = lipgloss.NewStyle().Foreground(lipgloss.Color("212"))
 	p.Styles.PaginationStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("86"))
 	p.SetShowHelp(false)
 	p.SetShowStatusBar(true)
-	return model{editor: ed, palette: p, input: textinput.New(), preview: true, message: "Ctrl+K opens the command palette"}
+	return model{editor: ed, palette: p, input: textinput.New(), preview: true, category: "ALL", message: "Ctrl+K opens the command palette"}
 }
 
 func (m model) Init() tea.Cmd { return m.editor.Focus() }
@@ -95,6 +122,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if selected, ok := m.palette.SelectedItem().(command); ok {
 					return m.execute(selected.name)
 				}
+			case "0":
+				return m.setCategory("ALL")
+			case "1":
+				return m.setCategory("FILE")
+			case "2":
+				return m.setCategory("FORMAT")
+			case "3":
+				return m.setCategory("INSERT")
+			case "4":
+				return m.setCategory("VIEW")
 			}
 		}
 		var cmd tea.Cmd
@@ -122,6 +159,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	m.editor, cmd = m.editor.Update(msg)
+	return m, cmd
+}
+
+func (m model) setCategory(category string) (tea.Model, tea.Cmd) {
+	m.category = category
+	m.palette.ResetFilter()
+	items := make([]list.Item, 0, len(commands))
+	for _, item := range commands {
+		entry := item.(command)
+		if category == "ALL" || entry.category == category {
+			items = append(items, entry)
+		}
+	}
+	cmd := m.palette.SetItems(items)
+	m.message = "Palette: " + category
 	return m, cmd
 }
 
@@ -233,9 +285,9 @@ func (m model) View() string {
 	if m.prompt != "" {
 		return "\n  " + m.prompt + ": " + m.input.View() + "\n"
 	}
-	header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("230")).Background(lipgloss.Color("57")).Padding(0, 1).Render("COLOR FIELD") + " " + chip("FILE", "86") + " " + chip("FORMAT", "212") + " " + chip("INSERT", "221") + " " + chip("VIEW", "141")
+	header := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("230")).Background(lipgloss.Color("57")).Padding(0, 1).Render("COLOR FIELD") + " " + chip("1 FILE", "86") + " " + chip("2 FORMAT", "212") + " " + chip("3 INSERT", "221") + " " + chip("4 VIEW", "141")
 	if m.paletteOpen {
-		return "\n" + header + "\n\n" + lipgloss.NewStyle().Border(lipgloss.DoubleBorder()).BorderForeground(lipgloss.Color("57")).Padding(0, 1).Render(m.palette.View()) + "\n\n  ↑↓ select · Enter run · Esc close · / filter\n"
+		return "\n" + header + "\n\n" + lipgloss.NewStyle().Border(lipgloss.DoubleBorder()).BorderForeground(lipgloss.Color("57")).Padding(0, 1).Render(m.palette.View()) + "\n\n  0 all · 1 file · 2 format · 3 insert · 4 view · ↑↓ select · Enter run · Esc close · / filter\n"
 	}
 	left := panel("DRAFT", m.documentView(), max(30, m.editor.Width()), "212")
 	content := left
@@ -328,6 +380,20 @@ func applyUnderlines(rendered string) string {
 func chip(label, color string) string {
 	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("0")).Background(lipgloss.Color(color)).Padding(0, 1).Render(label)
 }
+func categoryColor(category string) string {
+	switch category {
+	case "FILE":
+		return "86"
+	case "FORMAT":
+		return "212"
+	case "INSERT":
+		return "221"
+	case "VIEW":
+		return "141"
+	default:
+		return "250"
+	}
+}
 func panel(title, body string, width int, color string) string {
 	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color(color)).Padding(0, 1).Width(width).Render(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(color)).Render(title) + "\n" + body)
 }
@@ -345,6 +411,9 @@ func max(a, b int) int {
 }
 
 func main() {
+	// Color Field is specifically a color-language demo. Do not let an
+	// indeterminate terminal profile silently turn it into monochrome output.
+	lipgloss.SetColorProfile(termenv.ANSI256)
 	if _, err := tea.NewProgram(newModel(), tea.WithAltScreen()).Run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

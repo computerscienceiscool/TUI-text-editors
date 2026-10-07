@@ -30,6 +30,27 @@ func TestPaletteCommandInsertsMarkdown(t *testing.T) {
 	}
 }
 
+func TestPaletteCategoryFilterShowsOnlyMatchingCommands(t *testing.T) {
+	m := newModel()
+	updated, _ := m.setCategory("FORMAT")
+	m = updated.(model)
+	if m.category != "FORMAT" || len(m.palette.Items()) != 4 {
+		t.Fatalf("format filter = %q with %d items", m.category, len(m.palette.Items()))
+	}
+	for _, item := range m.palette.Items() {
+		if item.(command).category != "FORMAT" {
+			t.Fatalf("unexpected filtered command: %#v", item)
+		}
+	}
+}
+
+func TestPaletteCommandTitleIsPlainForFiltering(t *testing.T) {
+	entry := command{name: "Save document", category: "FILE"}
+	if got := entry.Title(); got != "Save document" {
+		t.Fatalf("title must be plain command text, got %q", got)
+	}
+}
+
 func TestDocumentViewShowsLiteralCaret(t *testing.T) {
 	m := newModel()
 	m.width, m.height = 80, 20

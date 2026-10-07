@@ -25,4 +25,10 @@ if ! rg -q 'COLOR FIELD' "$scratch_dir/transcript" || ! rg -q 'COMMAND PALETTE' 
   exit 1
 fi
 
+if ! rg -q $'\033\\[38;5;' "$scratch_dir/transcript"; then
+  cat "$scratch_dir/console"
+  echo 'Color Field smoke test did not emit ANSI-256 color sequences.' >&2
+  exit 1
+fi
+
 echo 'Color Field terminal smoke test passed.'
