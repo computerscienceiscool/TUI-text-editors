@@ -4,6 +4,9 @@ A collection of small Charm-based editors for a team learning session. Each
 editor keeps the same core document actions while exploring a different visual
 and interaction design.
 
+For a presenter-facing live-demo script, see
+[PRESENTATION-WALKTHROUGH.md](PRESENTATION-WALKTHROUGH.md).
+
 ## Editors
 
 ### 01 — Plain Default
@@ -28,6 +31,13 @@ colored action chips group File, Format, Insert, and View; `Ctrl+K` opens a
 searchable command list. It demonstrates color as an interaction language:
 color can establish categories, orientation, and an action vocabulary rather
 than simply decorate a terminal.
+
+### 04 — Ops Deck
+
+A dense operational layout with a persistent outline, live draft, reading
+view, metrics, and a compact key map. It demonstrates that a TUI can favor
+rapid scanning and action over whitespace—useful for operational or
+high-context work where several views must remain visible at once.
 
 ## Project layout
 
@@ -55,6 +65,12 @@ Run Command Palette / Color Field with:
 
 ```sh
 go run ./cmd/color-field
+```
+
+Run Ops Deck with:
+
+```sh
+go run ./cmd/ops-deck
 ```
 
 Press `F10` to open the menu (or use `Alt+F`, `Alt+E`, `Alt+O`, `Alt+I`,
