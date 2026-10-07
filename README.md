@@ -28,6 +28,16 @@ free to change menus, layout, interaction model, and visual style.
 go run ./cmd/plain-default
 ```
 
-Press `Alt+M` to open the menu. Arrow keys navigate menus; `Enter` selects an
-action. `Ctrl+P` toggles preview and `Ctrl+C` quits. Open and save `.md`,
+Press `F10` to open the menu (or use `Alt+F`, `Alt+E`, `Alt+O`, `Alt+I`,
+`Alt+V`, or `Alt+H` for a specific menu). Arrow keys navigate menus; `Enter`
+selects an action; `Esc` closes a menu or prompt. `Ctrl+P` toggles preview and
+`Ctrl+C` quits. Open and save `.md`,
 `.markdown`, and `.txt` files.
+
+## Verification
+
+Run `make check` before presenting a variant. It runs unit tests, static
+analysis, a build, and a real pseudo-terminal smoke test. Unit tests cover
+menu access and the `Ctrl+C` quit command. The smoke test types into the editor,
+checks that Glamour does not leak terminal color probes into the document, and
+requires the terminal session to exit cleanly.

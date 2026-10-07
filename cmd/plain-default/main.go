@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"tui-text-editors/internal/editor"
 
+	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/glamour/styles"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -52,14 +55,31 @@ type model struct {
 func newModel() model {
 	editor := textarea.New()
 	editor.Placeholder = "Start writing…"
-	editor.ShowLineNumbers = true
+	editor.ShowLineNumbers = false
+	editor.Cursor.SetMode(cursor.CursorStatic)
+	// textarea renders a static cursor with reverse-video. Keep the bright
+	// color in the foreground so it becomes the visible cursor background.
+	editor.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("13")).Background(lipgloss.Color("0")).Bold(true)
+	editor.FocusedStyle.CursorLine = lipgloss.NewStyle().Background(lipgloss.Color("236"))
+	editor.FocusedStyle.CursorLineNumber = lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("236"))
 	editor.Focus()
-	return model{editor: editor, input: textinput.New(), help: help.New(), preview: true, lineNumbers: true,
-		keys:    keyMap{menu: key.NewBinding(key.WithKeys("alt+m"), key.WithHelp("alt+m", "menu")), preview: key.NewBinding(key.WithKeys("ctrl+p"), key.WithHelp("ctrl+p", "preview")), quit: key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit"))},
+	m := model{editor: editor, input: textinput.New(), help: help.New(), preview: true, lineNumbers: true,
+		keys:    keyMap{menu: key.NewBinding(key.WithKeys("f10"), key.WithHelp("f10", "menu")), preview: key.NewBinding(key.WithKeys("ctrl+p"), key.WithHelp("ctrl+p", "preview")), quit: key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit"))},
 		message: "New Markdown document"}
+	m.setEditorGutter()
+	return m
 }
 
-func (m model) Init() tea.Cmd { return tea.Batch(m.editor.Focus(), textarea.Blink) }
+func (m model) Init() tea.Cmd {
+	return tea.Batch(m.editor.Focus(), textarea.Blink)
+}
+
+const (
+	underlineStart = "TUIEDITORUNDERLINESTART"
+	underlineEnd   = "TUIEDITORUNDERLINEEND"
+)
+
+var underlineTag = regexp.MustCompile(`(?s)<u>(.*?)</u>`)
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -67,11 +87,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.resize()
 	case tea.KeyMsg:
+		if key.Matches(msg, m.keys.quit) {
+			return m, tea.Quit
+		}
 		if m.prompt != "" {
 			return m.updatePrompt(msg)
 		}
-		if key.Matches(msg, m.keys.quit) {
-			return m, tea.Quit
+		if index, ok := menuShortcut(msg.String()); ok {
+			m.menuIndex, m.itemIndex, m.menuOpen = index, 0, true
+			return m, nil
 		}
 		if key.Matches(msg, m.keys.menu) {
 			m.menuOpen = !m.menuOpen
@@ -88,7 +112,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	var cmd tea.Cmd
 	m.editor, cmd = m.editor.Update(msg)
+	m.setEditorGutter()
 	return m, cmd
+}
+
+func (m *model) setEditorGutter() {
+	activeLine := m.editor.Line()
+	m.editor.SetPromptFunc(7, func(displayLine int) string {
+		marker := " "
+		if displayLine == activeLine {
+			marker = "▶"
+		}
+		return fmt.Sprintf("%s %3d ", marker, displayLine+1)
+	})
+}
+
+func menuShortcut(key string) (int, bool) {
+	for index, shortcut := range []string{"alt+f", "alt+e", "alt+o", "alt+i", "alt+v", "alt+h"} {
+		if key == shortcut {
+			return index, true
+		}
+	}
+	return 0, false
 }
 
 func (m *model) resize() {
@@ -147,7 +192,11 @@ func (m model) execute(action string) (tea.Model, tea.Cmd) {
 		return m.ask("Find", "")
 	case "Line numbers":
 		m.lineNumbers = !m.lineNumbers
-		m.editor.ShowLineNumbers = m.lineNumbers
+		if m.lineNumbers {
+			m.setEditorGutter()
+		} else {
+			m.editor.SetPromptFunc(0, func(int) string { return "" })
+		}
 		m.message = toggleMessage("Line numbers", m.lineNumbers)
 	case "Word wrap":
 		m.message = "Word wrap is enabled in the text area"
@@ -246,7 +295,7 @@ func (m *model) addRecent(path string) {
 
 func (m model) View() string {
 	if m.width == 0 {
-		return "Loading editor…"
+		return ""
 	}
 	bar := m.menuBar()
 	if m.menuOpen {
@@ -255,13 +304,63 @@ func (m model) View() string {
 	if m.prompt != "" {
 		return bar + "\n\n  " + m.prompt + ": " + m.input.View() + "\n"
 	}
-	editor := panel("DOCUMENT", m.editor.View(), max(30, m.editor.Width()))
-	content := editor
+	documentPanel := panel("DOCUMENT · Markdown source", m.documentView(), max(30, m.editor.Width()))
+	content := documentPanel
 	if m.preview && !m.focusMode {
-		content = lipgloss.JoinHorizontal(lipgloss.Top, editor, "  ", panel("PREVIEW · Glamour", m.renderPreview(), max(30, m.editor.Width())))
+		content = lipgloss.JoinHorizontal(lipgloss.Top, documentPanel, "  ", panel("PREVIEW · Rendered Markdown · Glamour", m.renderPreview(), max(30, m.editor.Width())))
 	}
-	footer := status(m.path, m.message) + "\n" + m.help.View(m.keys)
+	footer := status(m.path, m.message, m.editor.Line()+1, m.editor.LineInfo().StartColumn+m.editor.LineInfo().ColumnOffset+1) + "\n" + m.help.View(m.keys)
 	return "\n" + bar + "\n\n" + content + "\n\n" + footer + "\n"
+}
+
+// documentView deliberately draws the insertion point as a literal glyph.
+// Bubble's textarea otherwise represents it only with terminal styling, which
+// some terminals suppress entirely.
+func (m model) documentView() string {
+	lines := strings.Split(m.editor.Value(), "\n")
+	if len(lines) == 0 {
+		lines = []string{""}
+	}
+	activeLine := m.editor.Line()
+	if activeLine >= len(lines) {
+		activeLine = len(lines) - 1
+	}
+	lineInfo := m.editor.LineInfo()
+	activeColumn := lineInfo.StartColumn + lineInfo.ColumnOffset
+	height := max(1, m.editor.Height())
+	start := 0
+	if activeLine >= height {
+		start = activeLine - height + 1
+	}
+
+	var view strings.Builder
+	for displayLine := 0; displayLine < height; displayLine++ {
+		lineNumber := start + displayLine
+		if lineNumber > 0 {
+			view.WriteByte('\n')
+		}
+		marker := " "
+		if lineNumber == activeLine {
+			marker = "▶"
+		}
+		if m.lineNumbers {
+			fmt.Fprintf(&view, "%s %3d ", marker, lineNumber+1)
+		} else {
+			view.WriteString(marker + " ")
+		}
+		if lineNumber >= len(lines) {
+			continue
+		}
+		text := []rune(lines[lineNumber])
+		if lineNumber == activeLine {
+			column := min(activeColumn, len(text))
+			text = append(text, 0)
+			copy(text[column+1:], text[column:])
+			text[column] = '▌'
+		}
+		view.WriteString(string(text))
+	}
+	return view.String()
 }
 
 func (m model) menuBar() string {
@@ -288,25 +387,69 @@ func (m model) menuPopup() string {
 	return lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Padding(0, 1).Render(strings.Join(lines, "\n"))
 }
 func (m model) renderPreview() string {
-	r, err := glamour.NewTermRenderer(glamour.WithAutoStyle(), glamour.WithWordWrap(max(26, m.editor.Width()-4)))
+	source := underlineTag.ReplaceAllString(m.editor.Value(), underlineStart+"${1}"+underlineEnd)
+	// Goldmark parses block Markdown only once it sees a line ending. The
+	// textarea is often rendering an in-progress final line, so complete the
+	// document for the preview without changing what is stored in the editor.
+	if !strings.HasSuffix(source, "\n") {
+		source += "\n"
+	}
+	previewStyle := styles.DarkStyleConfig
+	// Glamour's dark theme intentionally echoes ## and ### before headings.
+	// The editor already has the source on the left, so the preview uses the
+	// same theme without repeating that Markdown syntax.
+	previewStyle.H1.Prefix = ""
+	previewStyle.H2.Prefix = ""
+	previewStyle.H3.Prefix = ""
+	previewStyle.H3.Suffix = ""
+	previewStyle.H4.Prefix = ""
+	previewStyle.H5.Prefix = ""
+	previewStyle.H6.Prefix = ""
+	r, err := glamour.NewTermRenderer(
+		glamour.WithStyles(previewStyle),
+		glamour.WithWordWrap(max(26, m.editor.Width()-4)),
+		glamour.WithPreservedNewLines(),
+	)
 	if err != nil {
 		return err.Error()
 	}
-	out, err := r.Render(m.editor.Value())
+	out, err := r.Render(source)
 	if err != nil {
 		return err.Error()
 	}
-	return out
+	return applyUnderlines(out)
+}
+
+func applyUnderlines(rendered string) string {
+	for {
+		start := strings.Index(rendered, underlineStart)
+		if start == -1 {
+			return rendered
+		}
+		endOffset := strings.Index(rendered[start+len(underlineStart):], underlineEnd)
+		if endOffset == -1 {
+			return strings.ReplaceAll(rendered, underlineStart, "")
+		}
+		end := start + len(underlineStart) + endOffset
+		underlined := underlineANSI(rendered[start+len(underlineStart) : end])
+		rendered = rendered[:start] + underlined + rendered[end+len(underlineEnd):]
+	}
+}
+
+func underlineANSI(content string) string {
+	const reset = "\x1b[0m"
+	const underline = "\x1b[4m"
+	return underline + strings.ReplaceAll(content, reset, reset+underline) + "\x1b[24m"
 }
 func panel(title, body string, width int) string {
 	return lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Padding(0, 1).Width(width).Render(lipgloss.NewStyle().Bold(true).Render(title) + "\n" + body)
 }
-func status(path, message string) string {
+func status(path, message string, line, column int) string {
 	name := "untitled.md"
 	if path != "" {
 		name = filepath.Base(path)
 	}
-	return lipgloss.NewStyle().Faint(true).Render(name + "  ·  " + message)
+	return lipgloss.NewStyle().Faint(true).Render(fmt.Sprintf("%s  ·  %s  ·  Ln %d, Col %d", name, message, line, column))
 }
 func toggleMessage(label string, on bool) string {
 	if on {
