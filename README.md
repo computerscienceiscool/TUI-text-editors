@@ -21,6 +21,14 @@ formatting, and Glamour-preview capabilities as Plain Default. It demonstrates
 that terminal interaction can guide structure and intent, not merely expose a
 blank canvas plus tools.
 
+### 03 — Command Palette / Color Field
+
+A deliberately vivid editor that replaces menus with one command palette. Its
+colored action chips group File, Format, Insert, and View; `Ctrl+K` opens a
+searchable command list. It demonstrates color as an interaction language:
+color can establish categories, orientation, and an action vocabulary rather
+than simply decorate a terminal.
+
 ## Project layout
 
 - `cmd/<editor-name>/` contains one runnable editor variant.
@@ -41,6 +49,12 @@ Run Guided Brief with:
 
 ```sh
 go run ./cmd/guided-brief
+```
+
+Run Command Palette / Color Field with:
+
+```sh
+go run ./cmd/color-field
 ```
 
 Press `F10` to open the menu (or use `Alt+F`, `Alt+E`, `Alt+O`, `Alt+I`,
