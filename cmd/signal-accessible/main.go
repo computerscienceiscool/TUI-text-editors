@@ -18,12 +18,28 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type menu struct {
+	name  string
+	items []menuItem
+}
+type menuItem struct{ label, action string }
+
+var signalMenus = []menu{
+	{"File", []menuItem{{"New", "new"}, {"Open…", "open"}, {"Save", "save"}, {"Save As…", "save-as"}}},
+	{"Edit", []menuItem{{"Cursor up", "up"}, {"Cursor down", "down"}}},
+	{"View", []menuItem{{"Split preview", "preview"}}},
+	{"Format", []menuItem{{"Heading", "heading"}, {"Bullet", "bullet"}, {"Bold", "bold"}, {"Italic", "italic"}, {"Underline", "underline"}}},
+	{"Help", []menuItem{{"Controls", "controls"}, {"About", "about"}}},
+}
+
 type model struct {
 	editor                textarea.Model
 	input                 textinput.Model
 	width, height         int
 	path, message, prompt string
 	preview               bool
+	menuIndex, itemIndex  int
+	menuOpen              bool
 }
 
 func newModel() model {
@@ -50,7 +66,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if key, ok := msg.(tea.KeyMsg); ok {
+		if m.menuOpen {
+			return m.updateMenu(key)
+		}
 		switch key.String() {
+		case "f10", "alt+m":
+			m.menuOpen, m.itemIndex = true, 0
+			m.resize()
+			return m, nil
+		case "alt+f", "alt+e", "alt+v", "alt+r", "alt+h":
+			m.menuIndex = map[string]int{"alt+f": 0, "alt+e": 1, "alt+v": 2, "alt+r": 3, "alt+h": 4}[key.String()]
+			m.menuOpen, m.itemIndex = true, 0
+			m.resize()
+			return m, nil
 		case "f2":
 			m.editor.SetValue("")
 			m.path = ""
@@ -82,13 +110,83 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.editor, cmd = m.editor.Update(msg)
 	return m, cmd
 }
+func (m model) updateMenu(key tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch key.String() {
+	case "esc", "f10", "alt+m":
+		m.menuOpen = false
+		m.resize()
+		return m, nil
+	case "left":
+		m.menuIndex = (m.menuIndex + len(signalMenus) - 1) % len(signalMenus)
+		m.itemIndex = 0
+	case "right":
+		m.menuIndex = (m.menuIndex + 1) % len(signalMenus)
+		m.itemIndex = 0
+	case "up":
+		items := signalMenus[m.menuIndex].items
+		m.itemIndex = (m.itemIndex + len(items) - 1) % len(items)
+	case "down":
+		items := signalMenus[m.menuIndex].items
+		m.itemIndex = (m.itemIndex + 1) % len(items)
+	case "enter":
+		return m.executeMenu(signalMenus[m.menuIndex].items[m.itemIndex])
+	}
+	return m, nil
+}
+func (m model) executeMenu(item menuItem) (tea.Model, tea.Cmd) {
+	m.menuOpen = false
+	m.resize()
+	switch item.action {
+	case "new":
+		m.editor.SetValue("")
+		m.path, m.message = "", "New document created"
+	case "open":
+		return m.ask("Open path", "")
+	case "save":
+		if m.path == "" {
+			return m.ask("Save path", "signal.md")
+		}
+		return m.save()
+	case "save-as":
+		return m.ask("Save path", m.path)
+	case "up":
+		m.editor.CursorUp()
+		m.message = "Cursor up"
+	case "down":
+		m.editor.CursorDown()
+		m.message = "Cursor down"
+	case "preview":
+		m.preview = !m.preview
+		m.resize()
+		m.message = toggle("Preview", m.preview)
+	case "heading":
+		m.editor.InsertString("## Heading\n")
+		m.message = "Heading inserted"
+	case "bullet":
+		m.editor.InsertString("- list item\n")
+		m.message = "Bullet inserted"
+	case "bold", "italic", "underline":
+		m.editor.InsertString(editor.InsertFormatting(item.action))
+		m.message = strings.Title(item.action) + " inserted"
+	case "controls":
+		m.message = "Alt+M menus · arrows select · Enter runs"
+	case "about":
+		m.message = "Signal — high-clarity editor"
+	}
+	return m, nil
+}
 func (m *model) resize() {
 	width := max(34, m.width-8)
 	if m.preview {
 		width = max(28, (m.width-10)/2)
 	}
 	m.editor.SetWidth(width)
-	m.editor.SetHeight(max(8, m.height-10))
+	menuRows := 0
+	if m.menuOpen {
+		menuRows = 7
+	}
+	// The permanent bordered menu row occupies three terminal rows.
+	m.editor.SetHeight(max(8, m.height-13-menuRows))
 }
 func (m model) ask(prompt, value string) (tea.Model, tea.Cmd) {
 	m.prompt = prompt
@@ -145,6 +243,10 @@ func (m model) View() string {
 		return "\n[INPUT REQUIRED] " + m.prompt + ": " + m.input.View() + "\n"
 	}
 	head := lipgloss.NewStyle().Bold(true).Border(lipgloss.DoubleBorder(), false, false, true, false).Render("SIGNAL — HIGH CLARITY EDITOR")
+	menu := m.menuBar()
+	if m.menuOpen {
+		menu += "\n" + m.menuPopup()
+	}
 	body := panel("[EDITING] Document input", m.documentView(), max(34, m.editor.Width()))
 	if m.preview {
 		body = lipgloss.JoinHorizontal(lipgloss.Top, body, "  ", panel("[READING] Markdown preview", m.previewView(), max(30, m.editor.Width())))
@@ -153,8 +255,31 @@ func (m model) View() string {
 	if m.path != "" {
 		name = filepath.Base(m.path)
 	}
-	footer := fmt.Sprintf("[STATUS] %s | %s | Ln %d, Col %d\n[F2] New  [F3] Save  [F4] Open  [F5] Heading  [F6] Bullet  [F7] Preview  [Ctrl+C] Quit", name, m.message, m.editor.Line()+1, m.editor.LineInfo().StartColumn+m.editor.LineInfo().ColumnOffset+1)
-	return "\n" + head + "\n\n" + body + "\n\n" + footer + "\n"
+	footer := fmt.Sprintf("[STATUS] %s | %s | Ln %d, Col %d\n[Alt+M] Menus  [F2] New  [F3] Save  [F4] Open  [F5] Heading  [F6] Bullet  [F7] Preview  [Ctrl+C] Quit", name, m.message, m.editor.Line()+1, m.editor.LineInfo().StartColumn+m.editor.LineInfo().ColumnOffset+1)
+	return "\n" + head + "\n" + menu + "\n\n" + body + "\n\n" + footer + "\n"
+}
+func (m model) menuBar() string {
+	parts := make([]string, len(signalMenus))
+	for i, item := range signalMenus {
+		style := lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Padding(0, 1)
+		if m.menuOpen && i == m.menuIndex {
+			style = style.Reverse(true)
+		}
+		parts[i] = style.Render(item.name)
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
+}
+func (m model) menuPopup() string {
+	items := signalMenus[m.menuIndex].items
+	rows := make([]string, len(items))
+	for i, item := range items {
+		prefix := "  "
+		if i == m.itemIndex {
+			prefix = "► "
+		}
+		rows[i] = prefix + item.label
+	}
+	return lipgloss.NewStyle().Border(lipgloss.DoubleBorder()).Padding(0, 1).Render(strings.Join(rows, "\n"))
 }
 func (m model) documentView() string {
 	lines := strings.Split(m.editor.Value(), "\n")

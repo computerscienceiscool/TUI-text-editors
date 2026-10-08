@@ -27,6 +27,28 @@ func TestHeadingShortcutUpdatesDocument(t *testing.T) {
 	}
 }
 
+func TestAltMMenuRunsFormatAction(t *testing.T) {
+	m := newModel()
+	m.width, m.height = 120, 40
+	m.resize()
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Alt: true, Runes: []rune{'m'}})
+	m = updated.(model)
+	if !m.menuOpen {
+		t.Fatal("Alt+M did not open the menu")
+	}
+	for range 2 {
+		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRight})
+		m = updated.(model)
+	}
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(model)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(model)
+	if m.menuOpen || m.editor.Value() != "**bold text**" {
+		t.Fatalf("menu did not run bold: open=%t text=%q", m.menuOpen, m.editor.Value())
+	}
+}
+
 func TestDocumentViewShowsLiteralCaret(t *testing.T) {
 	m := newModel()
 	m.width, m.height = 100, 30

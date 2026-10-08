@@ -16,7 +16,7 @@ func TestControlKOpensCommandPalette(t *testing.T) {
 	m.resize()
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlK})
 	m = updated.(model)
-	if !m.paletteOpen || !strings.Contains(m.View(), "COMMAND PALETTE") {
+	if !m.paletteOpen || !strings.Contains(m.View(), "BLUE PAPER MENU") {
 		t.Fatalf("Ctrl+K should open command palette, got %q", m.View())
 	}
 }
@@ -27,7 +27,7 @@ func TestAltMMenuOpensCategoryCommands(t *testing.T) {
 	m.resize()
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Alt: true, Runes: []rune{'m'}})
 	m = updated.(model)
-	if !m.paletteOpen || !strings.Contains(m.View(), "COMMAND PALETTE") {
+	if !m.paletteOpen || !strings.Contains(m.View(), "BLUE PAPER MENU") {
 		t.Fatalf("Alt+M did not open actionable menu: %q", m.View())
 	}
 }
@@ -100,5 +100,20 @@ func TestPreviewConsumesHeadingMarkers(t *testing.T) {
 	plain := ansiEscape.ReplaceAllString(m.previewView(), "")
 	if strings.Contains(plain, "##") || !strings.Contains(plain, "Heading") {
 		t.Fatalf("preview should render heading without source markers: %q", plain)
+	}
+}
+
+func TestPreviewAndMenuRestoreWhitePaperAfterStyleResets(t *testing.T) {
+	m := newModel()
+	m.width, m.height = 110, 36
+	m.resize()
+	m.editor.SetValue("typed text")
+	if got := m.previewView(); !strings.Contains(got, "48;5;15") || strings.Contains(got, "\x1b[40m") {
+		t.Fatalf("preview did not preserve white paper: %q", got)
+	}
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlK})
+	m = updated.(model)
+	if got := paperSurface(m.palette.View()); !strings.Contains(got, "48;5;15") || strings.Contains(got, "\x1b[40m") {
+		t.Fatalf("menu did not preserve white paper: %q", got)
 	}
 }

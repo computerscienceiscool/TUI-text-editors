@@ -52,6 +52,32 @@ func TestGuidedBriefStartsWithPurposeForm(t *testing.T) {
 	}
 }
 
+func TestEditorMenuNavigatesAndRunsFormatAction(t *testing.T) {
+	m := newModel()
+	m.screen = editorScreen
+	m.width, m.height = 110, 40
+	m.resize()
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Alt: true, Runes: []rune{'m'}})
+	m = updated.(model)
+	if !m.menuOpen {
+		t.Fatal("Alt+M did not open the editor menu")
+	}
+	for range 2 {
+		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRight})
+		m = updated.(model)
+	}
+	if got := guidedMenus[m.menuIndex].name; got != "Format" {
+		t.Fatalf("selected menu %q, want Format", got)
+	}
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(model)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(model)
+	if m.menuOpen || m.editor.Value() != "**bold text**" {
+		t.Fatalf("menu did not insert bold text: open=%t text=%q", m.menuOpen, m.editor.Value())
+	}
+}
+
 func TestGeneratedBriefPreviewConsumesMarkdownMarkers(t *testing.T) {
 	m := newModel()
 	m.width, m.height = 110, 36

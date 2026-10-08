@@ -19,6 +19,9 @@ make run
 make guided-brief
 make color-field
 make ops-deck
+make signal-accessible
+make playground
+make windows-desktop
 ```
 
 The demos all accept `Ctrl+C` to quit. Use a sufficiently wide terminal for
@@ -26,7 +29,7 @@ the split-pane variants; 140 columns is comfortable for Ops Deck.
 
 ## What is in this repository
 
-All four editors use the Charm ecosystem:
+All seven editors use the Charm ecosystem:
 
 | Component | Where it appears | What it demonstrates |
 | --- | --- | --- |
@@ -47,7 +50,7 @@ applications, including a future TUIos shell.
 
 Say:
 
-> “These are not four products. They are four answers to the same interaction
+> “These are not seven products. They are seven answers to the same interaction
 > question: how can a person write and read a Markdown document in a terminal?
 > The capabilities stay familiar; the interface changes what it emphasizes.”
 
@@ -58,6 +61,8 @@ Then name the progression:
 3. Expression and action vocabulary — Color Field.
 4. Scanning and operational context — Ops Deck.
 5. Clarity and redundant cues — Signal / Accessible.
+6. Play and emotional tone — Playground.
+7. Spatial hierarchy through foreground and background — Windows Desktop.
 
 ## 01 — Plain Default
 
@@ -240,6 +245,36 @@ make playground
 **Play and emotional tone.** Language, visual mood, micro-feedback, and
 optional ritual can spark new design ideas without pretending to be a complete
 product workflow.
+
+## 07 — Windows Desktop
+
+Launch:
+
+```sh
+make windows-desktop
+```
+
+### Demonstrate
+
+1. Point out the teal desktop, gray window surface, navy title bar, and raised
+   toolbar buttons before typing anything.
+2. Use `F2` for a new document, `F3` to save, `F4` to open, `F5` to insert a
+   heading, and `F6` to insert a list item.
+3. Press `F7` to hide and restore the reading view.
+4. Emphasize that the document editing and Markdown behavior are the same as
+   the other demos; only the visual language has changed.
+
+### Say
+
+> “A terminal does not have to be one undifferentiated black rectangle.
+> Foreground and background colors can construct a desktop, a window, a title
+> bar, controls, and content surfaces—even with the same small set of actions.”
+
+### Design lesson
+
+**Foreground/background as spatial hierarchy.** Color can define nested
+surfaces and ownership. A familiar visual reference, such as an early desktop
+window, can make those layers immediately legible without changing the task.
 
 ## Closing question for the team
 

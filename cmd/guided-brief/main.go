@@ -25,6 +25,20 @@ const (
 	editorScreen
 )
 
+type menu struct {
+	name  string
+	items []menuItem
+}
+
+type menuItem struct{ label, action string }
+
+var guidedMenus = []menu{
+	{"File", []menuItem{{"New brief", "brief"}, {"Open…", "open"}, {"Save", "save"}, {"Save As…", "save-as"}}},
+	{"View", []menuItem{{"Split preview", "preview"}}},
+	{"Format", []menuItem{{"Heading", "heading"}, {"Bold", "bold"}, {"Italic", "italic"}, {"Underline", "underline"}, {"Bullet list", "bullet"}}},
+	{"Help", []menuItem{{"Keyboard controls", "controls"}, {"About", "about"}}},
+}
+
 type model struct {
 	form                  *huh.Form
 	screen                screen
@@ -34,6 +48,8 @@ type model struct {
 	brief                 *briefAnswers
 	preview               bool
 	prompt, message, path string
+	menuIndex, itemIndex  int
+	menuOpen              bool
 }
 
 // briefAnswers is shared by Huh and Bubble Tea. Bubble Tea models are copied
@@ -110,7 +126,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.prompt != "" {
 			return m.updatePrompt(key)
 		}
+		if m.menuOpen {
+			return m.updateMenu(key)
+		}
 		switch key.String() {
+		case "f10", "alt+m":
+			m.menuOpen, m.itemIndex = true, 0
+			m.resize()
+			return m, nil
+		case "alt+f", "alt+v", "alt+r", "alt+h":
+			m.menuIndex = map[string]int{"alt+f": 0, "alt+v": 1, "alt+r": 2, "alt+h": 3}[key.String()]
+			m.menuOpen, m.itemIndex = true, 0
+			m.resize()
+			return m, nil
 		case "ctrl+p":
 			m.preview = !m.preview
 			m.resize()
@@ -143,13 +171,78 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m model) updateMenu(key tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch key.String() {
+	case "esc", "f10", "alt+m":
+		m.menuOpen = false
+		m.resize()
+		return m, nil
+	case "left":
+		m.menuIndex = (m.menuIndex + len(guidedMenus) - 1) % len(guidedMenus)
+		m.itemIndex = 0
+	case "right":
+		m.menuIndex = (m.menuIndex + 1) % len(guidedMenus)
+		m.itemIndex = 0
+	case "up":
+		items := guidedMenus[m.menuIndex].items
+		m.itemIndex = (m.itemIndex + len(items) - 1) % len(items)
+	case "down":
+		items := guidedMenus[m.menuIndex].items
+		m.itemIndex = (m.itemIndex + 1) % len(items)
+	case "enter":
+		return m.executeMenu(guidedMenus[m.menuIndex].items[m.itemIndex])
+	}
+	return m, nil
+}
+
+func (m model) executeMenu(item menuItem) (tea.Model, tea.Cmd) {
+	m.menuOpen = false
+	m.resize()
+	switch item.action {
+	case "brief":
+		m.screen, m.form = briefScreen, m.newBriefForm()
+		return m, m.form.Init()
+	case "open":
+		return m.ask("Open path", "")
+	case "save":
+		if m.path == "" {
+			return m.ask("Save path", "guided-brief.md")
+		}
+		return m.save()
+	case "save-as":
+		return m.ask("Save path", m.path)
+	case "preview":
+		m.preview = !m.preview
+		m.resize()
+		m.message = "Preview toggled"
+	case "heading":
+		m.editor.InsertString("## Heading\n")
+		m.message = "Heading inserted"
+	case "bold", "italic", "underline":
+		m.editor.InsertString(editor.InsertFormatting(item.action))
+		m.message = strings.Title(item.action) + " inserted"
+	case "bullet":
+		m.editor.InsertString("- list item\n")
+		m.message = "Bullet inserted"
+	case "controls":
+		m.message = "Alt+M opens menus · arrows select · Enter runs"
+	case "about":
+		m.message = "Guided Brief — purpose before tools"
+	}
+	return m, nil
+}
+
 func (m *model) resize() {
 	width := max(30, m.width-8)
 	if m.preview {
 		width = max(28, (m.width-10)/2)
 	}
 	m.editor.SetWidth(width)
-	m.editor.SetHeight(max(8, m.height-9))
+	menuRows := 0
+	if m.menuOpen {
+		menuRows = 7
+	}
+	m.editor.SetHeight(max(8, m.height-9-menuRows))
 }
 
 func (m model) ask(prompt, value string) (tea.Model, tea.Cmd) {
@@ -243,8 +336,36 @@ func (m model) View() string {
 	if m.path != "" {
 		path = filepath.Base(m.path)
 	}
-	footer := fmt.Sprintf("%s  ·  %s\nctrl+g revise brief • ctrl+s save • ctrl+o open • ctrl+p preview • ctrl+b/i/u/h/l format • ctrl+c quit", path, m.message)
-	return "\n" + lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86")).Render("GUIDED BRIEF  /  PURPOSE → STRUCTURE → WORDS") + "\n\n" + content + "\n\n" + footer + "\n"
+	menu := m.menuBar()
+	if m.menuOpen {
+		menu += "\n" + m.menuPopup()
+	}
+	footer := fmt.Sprintf("%s  ·  %s\nalt+m menus • ctrl+g revise brief • ctrl+s save • ctrl+o open • ctrl+p preview • ctrl+b/i/u/h/l format • ctrl+c quit", path, m.message)
+	return "\n" + lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86")).Render("GUIDED BRIEF  /  PURPOSE → STRUCTURE → WORDS") + "\n" + menu + "\n\n" + content + "\n\n" + footer + "\n"
+}
+
+func (m model) menuBar() string {
+	parts := make([]string, len(guidedMenus))
+	for i, item := range guidedMenus {
+		style := lipgloss.NewStyle().Padding(0, 1).Foreground(lipgloss.Color("86"))
+		if m.menuOpen && i == m.menuIndex {
+			style = style.Reverse(true)
+		}
+		parts[i] = style.Render(item.name)
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
+}
+func (m model) menuPopup() string {
+	items := guidedMenus[m.menuIndex].items
+	rows := make([]string, len(items))
+	for i, item := range items {
+		prefix := "  "
+		if i == m.itemIndex {
+			prefix = "› "
+		}
+		rows[i] = prefix + item.label
+	}
+	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("86")).Padding(0, 1).Render(strings.Join(rows, "\n"))
 }
 
 func (m model) previewView() string {

@@ -19,12 +19,27 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type menu struct {
+	name  string
+	items []menuItem
+}
+type menuItem struct{ label, action string }
+
+var opsMenus = []menu{
+	{"File", []menuItem{{"New", "new"}, {"Open…", "open"}, {"Save", "save"}, {"Save As…", "save-as"}}},
+	{"View", []menuItem{{"Split preview", "preview"}, {"Focus mode", "focus"}}},
+	{"Format", []menuItem{{"Heading", "heading"}, {"Bold", "bold"}, {"Italic", "italic"}, {"Underline", "underline"}, {"List", "list"}, {"Task", "task"}}},
+	{"Help", []menuItem{{"Keyboard controls", "controls"}, {"About", "about"}}},
+}
+
 type model struct {
 	editor                textarea.Model
 	input                 textinput.Model
 	width, height         int
 	path, message, prompt string
 	preview, focusMode    bool
+	menuIndex, itemIndex  int
+	menuOpen              bool
 }
 
 func newModel() model {
@@ -53,7 +68,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if key, ok := msg.(tea.KeyMsg); ok {
+		if m.menuOpen {
+			return m.updateMenu(key)
+		}
 		switch key.String() {
+		case "f10", "alt+m":
+			m.menuOpen, m.itemIndex = true, 0
+			m.resize()
+			return m, nil
+		case "alt+f", "alt+v", "alt+r", "alt+h":
+			m.menuIndex = map[string]int{"alt+f": 0, "alt+v": 1, "alt+r": 2, "alt+h": 3}[key.String()]
+			m.menuOpen, m.itemIndex = true, 0
+			m.resize()
+			return m, nil
 		case "ctrl+n":
 			m.editor.SetValue("")
 			m.path = ""
@@ -105,13 +132,85 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m model) updateMenu(key tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch key.String() {
+	case "esc", "f10", "alt+m":
+		m.menuOpen = false
+		m.resize()
+		return m, nil
+	case "left":
+		m.menuIndex = (m.menuIndex + len(opsMenus) - 1) % len(opsMenus)
+		m.itemIndex = 0
+	case "right":
+		m.menuIndex = (m.menuIndex + 1) % len(opsMenus)
+		m.itemIndex = 0
+	case "up":
+		items := opsMenus[m.menuIndex].items
+		m.itemIndex = (m.itemIndex + len(items) - 1) % len(items)
+	case "down":
+		items := opsMenus[m.menuIndex].items
+		m.itemIndex = (m.itemIndex + 1) % len(items)
+	case "enter":
+		return m.executeMenu(opsMenus[m.menuIndex].items[m.itemIndex])
+	}
+	return m, nil
+}
+func (m model) executeMenu(item menuItem) (tea.Model, tea.Cmd) {
+	m.menuOpen = false
+	m.resize()
+	switch item.action {
+	case "new":
+		m.editor.SetValue("")
+		m.path, m.message = "", "New document"
+	case "open":
+		return m.ask("Open path", "")
+	case "save":
+		if m.path == "" {
+			return m.ask("Save path", "ops-update.md")
+		}
+		return m.save()
+	case "save-as":
+		return m.ask("Save path", m.path)
+	case "preview":
+		m.preview = !m.preview
+		m.resize()
+		m.message = "Preview toggled"
+	case "focus":
+		m.focusMode = !m.focusMode
+		m.resize()
+		m.message = "Focus mode toggled"
+	case "heading":
+		m.editor.InsertString("## Heading\n")
+		m.message = "Heading inserted"
+	case "bold", "italic", "underline":
+		m.editor.InsertString(editor.InsertFormatting(item.action))
+		m.message = strings.Title(item.action) + " inserted"
+	case "list":
+		m.editor.InsertString("- list item\n")
+		m.message = "List inserted"
+	case "task":
+		m.editor.InsertString("- [ ] action\n")
+		m.message = "Task inserted"
+	case "controls":
+		m.message = "Alt+M opens menus · arrows select · Enter runs"
+	case "about":
+		m.message = "Ops Deck — dense operational editor"
+	}
+	return m, nil
+}
+
 func (m *model) resize() {
 	width := max(30, m.width-10)
 	if m.preview && !m.focusMode {
 		width = max(28, (m.width-44)/2)
 	}
 	m.editor.SetWidth(width)
-	m.editor.SetHeight(max(8, m.height-9))
+	menuRows := 0
+	if m.menuOpen {
+		menuRows = 8
+	}
+	// The menu bar consumes an additional row above the dense workspace.
+	m.editor.SetHeight(max(8, m.height-10-menuRows))
 }
 func (m model) ask(prompt, value string) (tea.Model, tea.Cmd) {
 	m.prompt = prompt
@@ -168,8 +267,12 @@ func (m model) View() string {
 		return "\n  " + m.prompt + ": " + m.input.View() + "\n"
 	}
 	head := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("230")).Background(lipgloss.Color("24")).Padding(0, 1).Render("OPS DECK") + "  " + lipgloss.NewStyle().Foreground(lipgloss.Color("86")).Render("DENSE MODE · SCAN / EDIT / VERIFY")
+	menu := m.menuBar()
+	if m.menuOpen {
+		menu += "\n" + m.menuPopup()
+	}
 	if m.focusMode {
-		return "\n" + head + "\n\n" + panel("LIVE DRAFT", m.documentView(), max(50, m.editor.Width()), "39") + "\n\n" + m.footer() + "\n"
+		return "\n" + head + "\n" + menu + "\n\n" + panel("LIVE DRAFT", m.documentView(), max(50, m.editor.Width()), "39") + "\n\n" + m.footer() + "\n"
 	}
 	outline := panel("OUTLINE", m.outlineView(), 25, "214")
 	draft := panel("LIVE DRAFT", m.documentView(), max(30, m.editor.Width()), "39")
@@ -177,7 +280,30 @@ func (m model) View() string {
 	if m.preview {
 		content = lipgloss.JoinHorizontal(lipgloss.Top, content, " ", panel("READING", m.previewView(), max(26, m.editor.Width()), "86"))
 	}
-	return "\n" + head + "\n\n" + content + "\n\n" + m.footer() + "\n"
+	return "\n" + head + "\n" + menu + "\n\n" + content + "\n\n" + m.footer() + "\n"
+}
+func (m model) menuBar() string {
+	parts := make([]string, len(opsMenus))
+	for i, item := range opsMenus {
+		style := lipgloss.NewStyle().Foreground(lipgloss.Color("230")).Background(lipgloss.Color("24")).Padding(0, 1)
+		if m.menuOpen && i == m.menuIndex {
+			style = style.Reverse(true)
+		}
+		parts[i] = style.Render(item.name)
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, parts...)
+}
+func (m model) menuPopup() string {
+	items := opsMenus[m.menuIndex].items
+	rows := make([]string, len(items))
+	for i, item := range items {
+		prefix := "  "
+		if i == m.itemIndex {
+			prefix = "› "
+		}
+		rows[i] = prefix + item.label
+	}
+	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("86")).Padding(0, 1).Render(strings.Join(rows, "\n"))
 }
 func (m model) footer() string {
 	name := "untitled.md"
@@ -186,7 +312,7 @@ func (m model) footer() string {
 	}
 	li := m.editor.LineInfo()
 	metrics := fmt.Sprintf("%d words · %d tasks · %d headings", wordCount(m.editor.Value()), strings.Count(m.editor.Value(), "- ["), len(headings(m.editor.Value())))
-	return fmt.Sprintf("%s · %s · %s · Ln %d Col %d\n^N new  ^O open  ^S save  ^H heading  ^B bold  ^I italic  ^U underline  ^L list  ^T task  ^P preview  ^F focus  ^C quit", name, m.message, metrics, m.editor.Line()+1, li.StartColumn+li.ColumnOffset+1)
+	return fmt.Sprintf("%s · %s · %s · Ln %d Col %d\nAlt+M menus  ^N new  ^O open  ^S save  ^H heading  ^B bold  ^I italic  ^U underline  ^L list  ^T task  ^P preview  ^F focus  ^C quit", name, m.message, metrics, m.editor.Line()+1, li.StartColumn+li.ColumnOffset+1)
 }
 
 func (m model) documentView() string {

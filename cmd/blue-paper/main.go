@@ -1,5 +1,4 @@
-// Command color-field is a command-palette editor with a deliberately vivid
-// visual language for demonstrating color as terminal interaction design.
+// Command blue-paper is a white-paper, Windows-blue editor demonstration.
 package main
 
 import (
@@ -87,13 +86,13 @@ func newModel() model {
 	ed.ShowLineNumbers = false
 	ed.Focus()
 	p := list.New(commands, paletteDelegate{}, 44, 16)
-	p.Title = "COMMAND PALETTE"
-	p.Styles.Title = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("230")).Background(lipgloss.Color("57")).Padding(0, 1)
-	p.Styles.StatusBar = lipgloss.NewStyle().Foreground(lipgloss.Color("212"))
-	p.Styles.PaginationStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("86"))
+	p.Title = "BLUE PAPER MENU"
+	p.Styles.Title = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Background(lipgloss.Color("4")).Padding(0, 1)
+	p.Styles.StatusBar = lipgloss.NewStyle().Foreground(lipgloss.Color("4"))
+	p.Styles.PaginationStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("4"))
 	p.SetShowHelp(false)
 	p.SetShowStatusBar(true)
-	return model{editor: ed, palette: p, input: textinput.New(), preview: true, category: "ALL", message: "Ctrl+K opens the command palette"}
+	return model{editor: ed, palette: p, input: textinput.New(), preview: true, category: "ALL", message: "Alt+M opens menus"}
 }
 
 func (m model) Init() tea.Cmd { return m.editor.Focus() }
@@ -308,7 +307,7 @@ func (m model) View() string {
 	}
 	header := lipgloss.JoinHorizontal(lipgloss.Top, parts...)
 	if m.paletteOpen {
-		return "\n" + header + "\n\n" + lipgloss.NewStyle().Border(lipgloss.DoubleBorder()).BorderForeground(lipgloss.Color("57")).Padding(0, 1).Render(m.palette.View()) + "\n\n  0 all · 1 file · 2 format · 3 insert · 4 view · ↑↓ select · Enter run · Esc close · / filter\n"
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Background(lipgloss.Color("15")).Render("\n" + header + "\n\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Background(lipgloss.Color("15")).Border(lipgloss.DoubleBorder()).BorderForeground(lipgloss.Color("4")).Padding(0, 1).Render(paperSurface(m.palette.View())) + "\n\n  0 all · 1 file · 2 format · 3 insert · 4 view · ↑↓ select · Enter run · Esc close · / filter\n")
 	}
 	left := panel("DRAFT", m.documentView(), max(30, m.editor.Width()), "212")
 	content := left
@@ -320,7 +319,7 @@ func (m model) View() string {
 		name = filepath.Base(m.path)
 	}
 	footer := fmt.Sprintf("%s  ·  %s  ·  Ln %d, Col %d\nalt+m / ctrl+k menus • 1 file • 2 format • 3 insert • 4 view • ctrl+c quit", name, m.message, m.editor.Line()+1, m.editor.LineInfo().StartColumn+m.editor.LineInfo().ColumnOffset+1)
-	return "\n" + header + "\n\n" + content + "\n\n" + footer + "\n"
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Background(lipgloss.Color("15")).Render("\n" + header + "\n\n" + content + "\n\n" + footer + "\n")
 }
 
 func (m model) documentView() string {
@@ -362,13 +361,14 @@ const underlineStart = "COLORFIELDUNDERLINESTART"
 const underlineEnd = "COLORFIELDUNDERLINEEND"
 
 var underlineTag = regexp.MustCompile(`(?s)<u>(.*?)</u>`)
+var paperBackground = regexp.MustCompile(`\x1b\[(?:4[0-9]|48;5;[0-9]+)m`)
 
 func (m model) previewView() string {
 	source := underlineTag.ReplaceAllString(m.editor.Value(), underlineStart+"${1}"+underlineEnd)
 	if !strings.HasSuffix(source, "\n") {
 		source += "\n"
 	}
-	style := styles.DarkStyleConfig
+	style := styles.LightStyleConfig
 	style.H1.Prefix, style.H2.Prefix, style.H3.Prefix = "", "", ""
 	style.H4.Prefix, style.H5.Prefix, style.H6.Prefix = "", "", ""
 	r, err := glamour.NewTermRenderer(glamour.WithStyles(style), glamour.WithWordWrap(max(26, m.editor.Width()-4)), glamour.WithPreservedNewLines())
@@ -379,7 +379,13 @@ func (m model) previewView() string {
 	if err != nil {
 		return err.Error()
 	}
-	return applyUnderlines(out)
+	return paperSurface(applyUnderlines(out))
+}
+
+func paperSurface(rendered string) string {
+	rendered = paperBackground.ReplaceAllString(rendered, "")
+	rendered = strings.ReplaceAll(rendered, "\x1b[0m", "\x1b[0;38;5;4;48;5;15m")
+	return "\x1b[38;5;4;48;5;15m" + rendered + "\x1b[0m"
 }
 
 func applyUnderlines(rendered string) string {
@@ -399,24 +405,24 @@ func applyUnderlines(rendered string) string {
 }
 
 func chip(label, color string) string {
-	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("0")).Background(lipgloss.Color(color)).Padding(0, 1).Render(label)
+	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Background(lipgloss.Color(color)).Padding(0, 1).Render(label)
 }
 func categoryColor(category string) string {
 	switch category {
 	case "FILE":
-		return "86"
+		return "4"
 	case "FORMAT":
-		return "212"
+		return "12"
 	case "INSERT":
-		return "221"
+		return "33"
 	case "VIEW":
-		return "141"
+		return "25"
 	default:
 		return "250"
 	}
 }
 func panel(title, body string, width int, color string) string {
-	return lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color(color)).Padding(0, 1).Width(width).Render(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(color)).Render(title) + "\n" + body)
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Background(lipgloss.Color("15")).Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color(color)).Padding(0, 1).Width(width).Render(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(color)).Render(title) + "\n" + body)
 }
 func min(a, b int) int {
 	if a < b {

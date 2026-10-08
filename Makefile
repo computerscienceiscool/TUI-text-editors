@@ -1,4 +1,4 @@
-.PHONY: run guided-brief color-field ops-deck signal-accessible playground test smoke vet build check
+.PHONY: run guided-brief color-field blue-paper ops-deck signal-accessible playground windows-desktop test smoke vet build check
 
 run:
 	go run ./cmd/plain-default
@@ -9,6 +9,9 @@ guided-brief:
 color-field:
 	go run ./cmd/color-field
 
+blue-paper:
+	go run ./cmd/blue-paper
+
 ops-deck:
 	go run ./cmd/ops-deck
 
@@ -17,6 +20,9 @@ signal-accessible:
 
 playground:
 	go run ./cmd/playground
+
+windows-desktop:
+	go run ./cmd/windows-desktop
 
 test:
 	go test ./...
@@ -28,6 +34,7 @@ smoke:
 	./scripts/smoke-ops-deck.sh
 	./scripts/smoke-signal-accessible.sh
 	./scripts/smoke-playground.sh
+	./scripts/smoke-windows-desktop.sh
 
 vet:
 	go vet ./...

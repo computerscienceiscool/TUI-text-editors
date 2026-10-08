@@ -31,6 +31,28 @@ func TestF5InsertsHeading(t *testing.T) {
 	}
 }
 
+func TestAltMMenuRunsFormatAction(t *testing.T) {
+	m := newModel()
+	m.width, m.height = 110, 40
+	m.resize()
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Alt: true, Runes: []rune{'m'}})
+	m = updated.(model)
+	if !m.menuOpen {
+		t.Fatal("Alt+M did not open menu")
+	}
+	for range 3 {
+		updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyRight})
+		m = updated.(model)
+	}
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyDown})
+	m = updated.(model)
+	updated, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = updated.(model)
+	if m.menuOpen || m.editor.Value() != "- list item\n" {
+		t.Fatalf("menu did not insert bullet: open=%t text=%q", m.menuOpen, m.editor.Value())
+	}
+}
+
 func TestDocumentViewShowsLiteralCaret(t *testing.T) {
 	m := newModel()
 	m.width, m.height = 80, 20

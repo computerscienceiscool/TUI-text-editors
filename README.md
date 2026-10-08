@@ -90,6 +90,19 @@ Run:
 make playground
 ```
 
+### 07 — Windows Desktop
+
+A 1990s desktop-inspired treatment of the same editor: a teal desktop, gray
+window surfaces, navy title bars, and raised controls. It demonstrates that
+foreground and background colors can create spatial layers, ownership, and
+action surfaces—not just accents on a single flat canvas.
+
+Run:
+
+```sh
+make windows-desktop
+```
+
 ## Project layout
 
 - `cmd/<editor-name>/` contains one runnable editor variant.
