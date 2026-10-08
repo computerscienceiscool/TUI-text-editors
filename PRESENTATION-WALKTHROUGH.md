@@ -22,6 +22,7 @@ make ops-deck
 make signal-accessible
 make playground
 make windows-desktop
+make blue-paper
 ```
 
 The demos all accept `Ctrl+C` to quit. Use a sufficiently wide terminal for
@@ -29,7 +30,7 @@ the split-pane variants; 140 columns is comfortable for Ops Deck.
 
 ## What is in this repository
 
-All seven editors use the Charm ecosystem:
+All eight editors use the Charm ecosystem:
 
 | Component | Where it appears | What it demonstrates |
 | --- | --- | --- |
@@ -50,7 +51,7 @@ applications, including a future TUIos shell.
 
 Say:
 
-> “These are not seven products. They are seven answers to the same interaction
+> “These are not eight products. They are eight answers to the same interaction
 > question: how can a person write and read a Markdown document in a terminal?
 > The capabilities stay familiar; the interface changes what it emphasizes.”
 
@@ -63,6 +64,7 @@ Then name the progression:
 5. Clarity and redundant cues — Signal / Accessible.
 6. Play and emotional tone — Playground.
 7. Spatial hierarchy through foreground and background — Windows Desktop.
+8. A full-screen light application surface — Blue Paper.
 
 ## 01 — Plain Default
 
@@ -275,6 +277,35 @@ make windows-desktop
 **Foreground/background as spatial hierarchy.** Color can define nested
 surfaces and ownership. A familiar visual reference, such as an early desktop
 window, can make those layers immediately legible without changing the task.
+
+## 08 — Blue Paper
+
+Launch:
+
+```sh
+make blue-paper
+```
+
+### Demonstrate
+
+1. Point out that the whole terminal is white paper with blue ink—there is no
+   exposed dark terminal background.
+2. Click `FILE`, `FORMAT`, `INSERT`, or `VIEW` in the colored top bar; the
+   selected category opens an executable menu of commands.
+3. Use arrows and `Enter` inside the menu, or use `Alt+M` / `Ctrl+K` to open
+   the complete command menu without relying on a mouse or function key.
+4. Type a heading and show the preview retains the white-paper surface.
+
+### Say
+
+> “A terminal is not inherently dark. Here the terminal becomes a bright
+> application canvas: paper, blue ink, menus, and a full-screen surface.”
+
+### Design lesson
+
+**Theme as environment.** Foreground, background, and unused whitespace are
+part of the interface. A visual system must own the whole viewport, not only
+the components that contain text.
 
 ## Closing question for the team
 

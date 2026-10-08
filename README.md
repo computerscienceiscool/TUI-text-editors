@@ -103,6 +103,19 @@ Run:
 make windows-desktop
 ```
 
+### 08 — Blue Paper
+
+A bright white-paper editor with Windows-blue chrome, blue ink, and a
+mouse-enabled color-category menu. It demonstrates that a terminal can occupy
+the whole screen as a deliberately light application surface—not merely a
+dark console with styled widgets.
+
+Run:
+
+```sh
+make blue-paper
+```
+
 ## Project layout
 
 - `cmd/<editor-name>/` contains one runnable editor variant.
