@@ -43,14 +43,14 @@ func (paletteDelegate) Render(w io.Writer, m list.Model, index int, item list.It
 		return
 	}
 	prefix := "  "
-	nameStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
+	nameStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Background(lipgloss.Color("15"))
 	if index == m.Index() {
 		prefix = "› "
-		nameStyle = nameStyle.Bold(true).Background(lipgloss.Color("236"))
+		nameStyle = nameStyle.Bold(true).Foreground(lipgloss.Color("15")).Background(lipgloss.Color("4"))
 	}
 	title := prefix + chip(entry.category, categoryColor(entry.category)) + " " + entry.name
 	detail := "   " + entry.description
-	fmt.Fprint(w, nameStyle.Render(title)+"\n"+lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Render(detail))
+	fmt.Fprint(w, nameStyle.Render(title)+"\n"+lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Background(lipgloss.Color("15")).Render(detail))
 }
 
 var commands = []list.Item{
@@ -297,17 +297,17 @@ func (m model) View() string {
 		return ""
 	}
 	if m.prompt != "" {
-		return "\n  " + m.prompt + ": " + m.input.View() + "\n"
+		return m.paperCanvas("\n  " + m.prompt + ": " + m.input.View() + "\n")
 	}
 	labels := []string{"FILE", "FORMAT", "INSERT", "VIEW"}
-	parts := []string{lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("230")).Background(lipgloss.Color("57")).Padding(0, 1).Render("COLOR FIELD")}
+	parts := []string{lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")).Background(lipgloss.Color("4")).Padding(0, 1).Render("BLUE PAPER")}
 	for _, label := range labels {
 		s := chip(label, categoryColor(label))
 		parts = append(parts, s)
 	}
 	header := lipgloss.JoinHorizontal(lipgloss.Top, parts...)
 	if m.paletteOpen {
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Background(lipgloss.Color("15")).Render("\n" + header + "\n\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Background(lipgloss.Color("15")).Border(lipgloss.DoubleBorder()).BorderForeground(lipgloss.Color("4")).Padding(0, 1).Render(paperSurface(m.palette.View())) + "\n\n  0 all · 1 file · 2 format · 3 insert · 4 view · ↑↓ select · Enter run · Esc close · / filter\n")
+		return m.paperCanvas("\n" + header + "\n\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Background(lipgloss.Color("15")).Border(lipgloss.DoubleBorder()).BorderForeground(lipgloss.Color("4")).Padding(0, 1).Render(paperSurface(m.palette.View())) + "\n\n  0 all · 1 file · 2 format · 3 insert · 4 view · ↑↓ select · Enter run · Esc close · / filter\n")
 	}
 	left := panel("DRAFT", m.documentView(), max(30, m.editor.Width()), "212")
 	content := left
@@ -319,7 +319,25 @@ func (m model) View() string {
 		name = filepath.Base(m.path)
 	}
 	footer := fmt.Sprintf("%s  ·  %s  ·  Ln %d, Col %d\nalt+m / ctrl+k menus • 1 file • 2 format • 3 insert • 4 view • ctrl+c quit", name, m.message, m.editor.Line()+1, m.editor.LineInfo().StartColumn+m.editor.LineInfo().ColumnOffset+1)
-	return lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Background(lipgloss.Color("15")).Render("\n" + header + "\n\n" + content + "\n\n" + footer + "\n")
+	return m.paperCanvas("\n" + header + "\n\n" + content + "\n\n" + footer + "\n")
+}
+
+// paperCanvas paints the entire terminal viewport. Styling only the content
+// leaves unused cells at the terminal's default (often black) background.
+func (m model) paperCanvas(content string) string {
+	paper := lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Background(lipgloss.Color("15"))
+	lines := strings.Split(paperSurface(content), "\n")
+	for len(lines) < m.height {
+		lines = append(lines, "")
+	}
+	if len(lines) > m.height {
+		lines = lines[:m.height]
+	}
+	for i, line := range lines {
+		padding := max(0, m.width-lipgloss.Width(line))
+		lines[i] = paper.Render(line + strings.Repeat(" ", padding))
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (m model) documentView() string {

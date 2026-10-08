@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
 var ansiEscape = regexp.MustCompile(`\x1b\[[0-?]*[ -/]*[@-~]`)
@@ -115,5 +117,34 @@ func TestPreviewAndMenuRestoreWhitePaperAfterStyleResets(t *testing.T) {
 	m = updated.(model)
 	if got := paperSurface(m.palette.View()); !strings.Contains(got, "48;5;15") || strings.Contains(got, "\x1b[40m") {
 		t.Fatalf("menu did not preserve white paper: %q", got)
+	}
+}
+
+func TestCanvasPaintsEntireViewport(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.ANSI256)
+	m := newModel()
+	m.width, m.height = 110, 36
+	view := m.paperCanvas("blue paper")
+	if !strings.Contains(view, "48;5;15") && !strings.Contains(view, "107m") {
+		t.Fatalf("canvas does not paint white paper: %q", view)
+	}
+}
+
+func TestCanvasNeverLeaksBlackAndPaintsEveryRow(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.ANSI256)
+	m := newModel()
+	m.width, m.height = 90, 12
+	view := m.paperCanvas("left panel\npreview panel")
+	if strings.Contains(view, "\x1b[40m") || strings.Contains(view, "48;5;0") {
+		t.Fatalf("canvas leaked a black background: %q", view)
+	}
+	rows := strings.Split(view, "\n")
+	if len(rows) != m.height {
+		t.Fatalf("canvas has %d rows, want %d", len(rows), m.height)
+	}
+	for row, line := range rows {
+		if !strings.Contains(line, "107m") && !strings.Contains(line, "48;5;15") {
+			t.Fatalf("row %d has no white-paper background: %q", row, line)
+		}
 	}
 }
