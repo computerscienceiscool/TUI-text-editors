@@ -59,8 +59,10 @@ Launch it:
 make tuios
 ```
 
-Inside TUIos, create a pane/window using its on-screen key help, enter terminal
-input mode, and run one editor per pane from this repository:
+Inside TUIos, create a pane/window using its on-screen key help. With the pane
+focused, press `i` or `Enter` to enter terminal input mode, then run one editor
+per pane from this repository. Press `Esc` to return to TUIos window-management
+mode:
 
 ```sh
 make blue-paper

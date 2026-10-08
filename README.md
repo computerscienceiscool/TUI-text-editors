@@ -149,4 +149,6 @@ make tuios
 ```
 
 Then create panes or windows in TUIos and run the individual `make` commands
-from this repository inside them. The presenter script has a concise walkthrough.
+from this repository inside them. With a pane focused, press `i` or `Enter` to
+enter terminal mode before typing into an editor; press `Esc` to return to
+TUIos window-management mode. The presenter script has a concise walkthrough.
