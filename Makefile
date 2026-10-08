@@ -1,4 +1,4 @@
-.PHONY: run guided-brief color-field blue-paper ops-deck signal-accessible playground windows-desktop test smoke vet build check
+.PHONY: run guided-brief color-field blue-paper ops-deck signal-accessible playground windows-desktop tuios test smoke vet build check
 
 run:
 	go run ./cmd/plain-default
@@ -23,6 +23,9 @@ playground:
 
 windows-desktop:
 	go run ./cmd/windows-desktop
+
+tuios:
+	$(HOME)/.local/bin/tuios
 
 test:
 	go test ./...

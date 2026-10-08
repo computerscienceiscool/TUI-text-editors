@@ -47,6 +47,30 @@ for dashboard/application shells. These examples use Charm components directly
 so the team can see the building blocks that can live inside many kinds of TUI
 applications, including a future TUIos shell.
 
+## TUIos finale — after the individual editors
+
+TUIos is a separate terminal window manager. Use it only after the one-at-a-time
+editor tour; it is the final showcase of several terminal applications sharing a
+workspace, not a replacement for any editor.
+
+Launch it:
+
+```sh
+make tuios
+```
+
+Inside TUIos, create a pane/window using its on-screen key help, enter terminal
+input mode, and run one editor per pane from this repository:
+
+```sh
+make blue-paper
+make windows-desktop
+make color-field
+```
+
+For the team, the contrast is deliberate: Charm supplies the editor components
+inside each app; TUIos supplies the surrounding multi-application workspace.
+
 ## Suggested opening — 30 seconds
 
 Say:

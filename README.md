@@ -137,3 +137,16 @@ analysis, a build, and a real pseudo-terminal smoke test. Unit tests cover
 menu access and the `Ctrl+C` quit command. The smoke test types into the editor,
 checks that Glamour does not leak terminal color probes into the document, and
 requires the terminal session to exit cleanly.
+
+## TUIos finale
+
+TUIos is a separate terminal window manager for the final showcase. It does not
+replace or modify any editor above. After presenting the editors one at a time,
+start it with:
+
+```sh
+make tuios
+```
+
+Then create panes or windows in TUIos and run the individual `make` commands
+from this repository inside them. The presenter script has a concise walkthrough.
